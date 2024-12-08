@@ -164,25 +164,25 @@ CREATE TRIGGER update_total_chair_location_distances
     BEFORE INSERT ON chair_locations
     FOR EACH ROW
 BEGIN
-    DECLARE previous_latitude INT DEFAULT 0;
-    DECLARE previous_longitude INT DEFAULT 0;
+    DECLARE previous_latitude INT DEFAULT NULL;
+    DECLARE previous_longitude INT DEFAULT NULL;
     DECLARE distance INT DEFAULT 0;
     DECLARE total_distance_updated_at DATETIME(6) DEFAULT NULL;
 
-    -- 直前の位置情報を取得
+    -- 直前の位置情報を取得（直前の位置情報をそのまま取得）
     SELECT latitude, longitude
     INTO previous_latitude, previous_longitude
     FROM chair_locations
     WHERE chair_id = NEW.chair_id
     ORDER BY created_at DESC
-    LIMIT 1;  -- 直前の位置情報を取得
+    LIMIT 1;  -- 直前の位置情報を取得（NEWを除外する）
 
-    -- 最初の位置情報挿入時には距離を0に設定
-    IF previous_latitude = 0 AND previous_longitude = 0 THEN
+    -- 初回挿入時（直前の座標がNULLの場合）には移動距離を0に設定
+    IF previous_latitude IS NULL AND previous_longitude IS NULL THEN
         SET distance = 0;
-        SET total_distance_updated_at = NULL;  -- 初回挿入時には更新日時をNULLに設定
+        SET total_distance_updated_at = NULL;
     ELSE
-        -- 移動距離を計算
+        -- 直前の座標がNULLでない場合、移動距離を計算
         SET distance = ABS(NEW.latitude - previous_latitude) + ABS(NEW.longitude - previous_longitude);
         SET total_distance_updated_at = NEW.created_at;  -- 更新日時を設定
     END IF;
@@ -197,4 +197,5 @@ BEGIN
 END $$
 
 DELIMITER ;
+
 
