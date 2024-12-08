@@ -21,7 +21,21 @@ type paymentGatewayGetPaymentsResponseOne struct {
 	Status string `json:"status"`
 }
 
+func newHTTPClient() *http.Client {
+	transport := &http.Transport{
+		MaxIdleConns:        100,              // 全体の最大アイドル接続数
+		MaxIdleConnsPerHost: 10,               // 各ホストごとの最大アイドル接続数
+		IdleConnTimeout:     90 * time.Second, // アイドル接続のタイムアウト
+	}
+
+	return &http.Client{
+		Timeout:   10 * time.Second, // 全体のリクエストタイムアウト
+		Transport: transport,
+	}
+}
+
 func requestPaymentGatewayPostPayment(ctx context.Context, paymentGatewayURL string, token string, param *paymentGatewayPostPaymentRequest, retrieveRidesOrderByCreatedAtAsc func() ([]Ride, error)) error {
+	client := newHTTPClient()
 	b, err := json.Marshal(param)
 	if err != nil {
 		return err
@@ -39,7 +53,7 @@ func requestPaymentGatewayPostPayment(ctx context.Context, paymentGatewayURL str
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("Authorization", "Bearer "+token)
 
-			res, err := http.DefaultClient.Do(req)
+			res, err := client.Do(req)
 			if err != nil {
 				return err
 			}
@@ -53,7 +67,7 @@ func requestPaymentGatewayPostPayment(ctx context.Context, paymentGatewayURL str
 				}
 				getReq.Header.Set("Authorization", "Bearer "+token)
 
-				getRes, err := http.DefaultClient.Do(getReq)
+				getRes, err := client.Do(getReq)
 				if err != nil {
 					return err
 				}
