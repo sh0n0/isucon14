@@ -20,7 +20,7 @@ type chairPostChairsResponse struct {
 	OwnerID string `json:"owner_id"`
 }
 
-const RetryAfterMs = 300
+const RetryAfterMs = 1500
 
 func chairPostChairs(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
