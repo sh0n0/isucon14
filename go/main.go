@@ -81,7 +81,7 @@ func setup() http.Handler {
 	mux.HandleFunc("POST /api/initialize", postInitialize)
 
 	// Tickerを使って定期的にバルクインサート
-	ticker := time.NewTicker(time.Millisecond * 200)
+	ticker := time.NewTicker(time.Millisecond * 50)
 	go func() {
 		for range ticker.C {
 			if chairLocationsBuffer == nil {
