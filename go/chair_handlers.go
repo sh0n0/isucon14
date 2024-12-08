@@ -1,11 +1,9 @@
 package main
 
 import (
-	"context"
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/jmoiron/sqlx"
 	"net/http"
 	"sync"
 	"time"
@@ -119,7 +117,7 @@ func chairPostCoordinate(w http.ResponseWriter, r *http.Request) {
 
 	createdAt := time.Now().UTC()
 
-	if err := handleInsert(ctx, tx, chair.ID, req.Latitude, req.Longitude, createdAt); err != nil {
+	if err := handleInsert(chair.ID, req.Latitude, req.Longitude, createdAt); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -166,10 +164,9 @@ func chairPostCoordinate(w http.ResponseWriter, r *http.Request) {
 var (
 	chairLocationsBuffer []ChairLocation
 	bufferMutex          sync.Mutex // バッファ用のミューテックス
-	batchSize            = 10
 )
 
-func handleInsert(ctx context.Context, tx *sqlx.Tx, chairID string, latitude int, longitude int, createdAt time.Time) error {
+func handleInsert(chairID string, latitude int, longitude int, createdAt time.Time) error {
 	// 新しい椅子の位置情報を作成
 	chairLocationID := ulid.Make().String()
 	location := ChairLocation{
@@ -185,22 +182,6 @@ func handleInsert(ctx context.Context, tx *sqlx.Tx, chairID string, latitude int
 	defer bufferMutex.Unlock() // 処理後にロックを解放
 
 	chairLocationsBuffer = append(chairLocationsBuffer, location)
-
-	// バッファが指定されたサイズに達したらBULK INSERTを実行
-	if len(chairLocationsBuffer) >= batchSize {
-		// NamedExecを使って一括挿入
-		query := `
-		INSERT INTO chair_locations (id, chair_id, latitude, longitude)
-		VALUES (:id, :chair_id, :latitude, :longitude)
-		`
-		_, err := tx.NamedExecContext(ctx, query, chairLocationsBuffer)
-		if err != nil {
-			return fmt.Errorf("failed to insert chair locations: %w", err)
-		}
-
-		// バッファをクリア
-		chairLocationsBuffer = nil
-	}
 
 	return nil
 }

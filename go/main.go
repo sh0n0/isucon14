@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	crand "crypto/rand"
 	"encoding/json"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -77,6 +79,19 @@ func setup() http.Handler {
 	mux.Use(middleware.Logger)
 	mux.Use(middleware.Recoverer)
 	mux.HandleFunc("POST /api/initialize", postInitialize)
+
+	// Tickerを使って定期的にバルクインサート
+	ticker := time.NewTicker(time.Millisecond * 2000)
+	go func() {
+		for range ticker.C {
+			if chairLocationsBuffer == nil {
+				continue
+			}
+			if err := bulkInsert(context.Background(), db); err != nil {
+				slog.Error("failed to bulk insert", err)
+			}
+		}
+	}()
 
 	// app handlers
 	{
@@ -148,6 +163,23 @@ func postInitialize(w http.ResponseWriter, r *http.Request) {
 type Coordinate struct {
 	Latitude  int `json:"latitude"`
 	Longitude int `json:"longitude"`
+}
+
+func bulkInsert(ctx context.Context, db *sqlx.DB) error {
+	// NamedExecを使って一括挿入
+	query := `
+		INSERT INTO chair_locations (id, chair_id, latitude, longitude)
+		VALUES (:id, :chair_id, :latitude, :longitude)
+		`
+	_, err := db.NamedExecContext(ctx, query, chairLocationsBuffer)
+	if err != nil {
+		return fmt.Errorf("failed to insert chair locations: %w", err)
+	}
+
+	// バッファをクリア
+	chairLocationsBuffer = nil
+
+	return nil
 }
 
 func bindJSON(r *http.Request, v interface{}) error {
