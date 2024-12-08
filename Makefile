@@ -31,9 +31,6 @@ restart-infra:
 	@if [ -f $(NGX_LOG_FOR_ALP) ]; then \
 		sudo mv -f $(NGX_LOG_FOR_ALP) ~/logs/$(when)/ ; \
 	fi
-	@if [ -f $(NGX_LOG_FOR_KATARIBE) ]; then \
-		sudo mv -f $(NGX_LOG_FOR_KATARIBE) ~/logs/$(when)/ ; \
-	fi
 	@if [ -f $(MYSQL_LOG) ]; then \
 		sudo mv -f $(MYSQL_LOG) ~/logs/$(when)/ ; \
 	fi
