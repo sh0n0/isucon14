@@ -142,6 +142,7 @@ func chairPostCoordinate(w http.ResponseWriter, r *http.Request) {
 					writeError(w, http.StatusInternalServerError, err)
 					return
 				}
+				sendRideStatus("PICKUP", ride.ID)
 			}
 
 			if req.Latitude == ride.DestinationLatitude && req.Longitude == ride.DestinationLongitude && status == "CARRYING" {
@@ -149,6 +150,7 @@ func chairPostCoordinate(w http.ResponseWriter, r *http.Request) {
 					writeError(w, http.StatusInternalServerError, err)
 					return
 				}
+				sendRideStatus("ARRIVED", ride.ID)
 			}
 		}
 	}
@@ -229,6 +231,9 @@ type chairGetNotificationResponseData struct {
 	Status                string     `json:"status"`
 }
 
+// rideIdごとにride_statusのchanelを作成
+var rideStatusCh = make(map[string]chan string)
+
 func chairGetNotification(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	chair := ctx.Value("chair").(*Chair)
@@ -289,25 +294,41 @@ func chairGetNotification(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, &chairGetNotificationResponse{
-		Data: &chairGetNotificationResponseData{
-			RideID: ride.ID,
-			User: simpleUser{
-				ID:   user.ID,
-				Name: fmt.Sprintf("%s %s", user.Firstname, user.Lastname),
-			},
-			PickupCoordinate: Coordinate{
-				Latitude:  ride.PickupLatitude,
-				Longitude: ride.PickupLongitude,
-			},
-			DestinationCoordinate: Coordinate{
-				Latitude:  ride.DestinationLatitude,
-				Longitude: ride.DestinationLongitude,
-			},
-			Status: status,
-		},
-		RetryAfterMs: RetryAfterMs,
-	})
+	w.Header().Set("Content-Type", "text/event-stream")
+	sendRideStatus(status, ride.ID)
+
+	for {
+		select {
+		case receivedStatus := <-rideStatusCh[ride.ID]:
+			writeJSON(w, http.StatusOK, &chairGetNotificationResponse{
+				Data: &chairGetNotificationResponseData{
+					RideID: ride.ID,
+					User: simpleUser{
+						ID:   user.ID,
+						Name: fmt.Sprintf("%s %s", user.Firstname, user.Lastname),
+					},
+					PickupCoordinate: Coordinate{
+						Latitude:  ride.PickupLatitude,
+						Longitude: ride.PickupLongitude,
+					},
+					DestinationCoordinate: Coordinate{
+						Latitude:  ride.DestinationLatitude,
+						Longitude: ride.DestinationLongitude,
+					},
+					Status: receivedStatus,
+				},
+			})
+			// 改行を入れる
+			w.Write([]byte("\n"))
+		case <-ctx.Done():
+			return
+		}
+
+	}
+}
+
+func sendRideStatus(status string, rideID string) {
+	rideStatusCh[rideID] <- status
 }
 
 type postChairRidesRideIDStatusRequest struct {
@@ -355,6 +376,7 @@ func chairPostRideStatus(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusInternalServerError, err)
 			return
 		}
+		sendRideStatus("ENROUTE", ride.ID)
 	// After Picking up user
 	case "CARRYING":
 		status, err := getLatestRideStatus(ctx, tx, ride.ID)
@@ -370,6 +392,7 @@ func chairPostRideStatus(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusInternalServerError, err)
 			return
 		}
+		sendRideStatus("CARRYING", ride.ID)
 	default:
 		writeError(w, http.StatusBadRequest, errors.New("invalid status"))
 	}
