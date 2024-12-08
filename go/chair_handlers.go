@@ -165,7 +165,7 @@ func chairPostCoordinate(w http.ResponseWriter, r *http.Request) {
 
 var (
 	chairLocationsBuffer []ChairLocation
-	chairIdSet           = make(map[string]struct{})
+	chairIdSet           = make(map[string]bool)
 	bufferMutex          sync.Mutex // バッファ用のミューテックス
 )
 
@@ -185,13 +185,15 @@ func handleInsert(ctx context.Context, tx *sqlx.Tx, chairID string, latitude int
 	defer bufferMutex.Unlock() // 処理後にロックを解放
 
 	// chairIdSetにchairIDを追加
-	chairIdSet[chairID] = struct{}{}
+	chairIdSet[chairID] = true
 
 	// すでにchairIdSetに存在する場合はbulkInsertを実行
 	if _, ok := chairIdSet[chairID]; ok {
 		if err := bulkInsert(ctx, tx); err != nil {
 			return err
 		}
+		// chairIdSetを初期化
+		chairIdSet = make(map[string]bool)
 	}
 
 	chairLocationsBuffer = append(chairLocationsBuffer, location)
