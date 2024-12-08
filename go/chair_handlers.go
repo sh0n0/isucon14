@@ -169,7 +169,7 @@ func chairPostCoordinate(w http.ResponseWriter, r *http.Request) {
 }
 
 var (
-	chairLocationsBuffer []ChairLocationBuffer
+	chairLocationsBuffer []ChairLocation
 	bufferMutex          sync.Mutex // バッファ用のミューテックス
 	batchSize            = 10
 )
