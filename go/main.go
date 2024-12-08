@@ -84,7 +84,7 @@ func setup() http.Handler {
 	ticker := time.NewTicker(time.Millisecond * 1000)
 	go func() {
 		for range ticker.C {
-			if chairLocationsBuffer == nil {
+			if chairLocationsBuffer == nil || len(chairLocationsBuffer) == 0 {
 				continue
 			}
 			tx, err := db.Beginx()
@@ -171,6 +171,15 @@ type Coordinate struct {
 }
 
 func bulkInsert(ctx context.Context, tx *sqlx.Tx) error {
+	// Mutexを使ってバッファをロック
+	bufferMutex.Lock()
+	defer bufferMutex.Unlock()
+
+	// バッファが空の場合は何もしない
+	if len(chairLocationsBuffer) == 0 {
+		return nil
+	}
+
 	// NamedExecを使って一括挿入
 	query := `
 		INSERT INTO chair_locations (id, chair_id, latitude, longitude)
