@@ -9,7 +9,7 @@ DB_PASS:=isucon
 DB_NAME:=isuride
 
 SERVICE:=isuride-go.service
-ALPM:="/TODO,/TODO"
+ALPM:="/api/app/rides/.+/evaluation,/api/chair/rides/.+/status,/assets/.+,/images/.+"
 ####################################################################
 
 MYSQL_CMD:=mysql -h$(DB_HOST) -P$(DB_PORT) -u$(DB_USER) -p$(DB_PASS) $(DB_NAME)
