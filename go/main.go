@@ -5,6 +5,10 @@ import (
 	crand "crypto/rand"
 	"encoding/json"
 	"fmt"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-sql-driver/mysql"
+	"github.com/jmoiron/sqlx"
 	"log"
 	"log/slog"
 	"net"
@@ -13,12 +17,6 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
-	"time"
-
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
-	"github.com/go-sql-driver/mysql"
-	"github.com/jmoiron/sqlx"
 )
 
 var db *sqlx.DB
@@ -79,24 +77,6 @@ func setup() http.Handler {
 	//mux.Use(middleware.Logger)
 	mux.Use(middleware.Recoverer)
 	mux.HandleFunc("POST /api/initialize", postInitialize)
-
-	// Tickerを使って定期的にバルクインサート
-	ticker := time.NewTicker(time.Millisecond * 1000)
-	go func() {
-		for range ticker.C {
-			if chairLocationsBuffer == nil || len(chairLocationsBuffer) == 0 {
-				continue
-			}
-			tx, err := db.Beginx()
-			if err != nil {
-				return
-			}
-			if err := bulkInsert(context.Background(), tx); err != nil {
-				slog.Error("failed to bulk insert", err)
-			}
-			tx.Commit()
-		}
-	}()
 
 	// app handlers
 	{
@@ -171,10 +151,6 @@ type Coordinate struct {
 }
 
 func bulkInsert(ctx context.Context, tx *sqlx.Tx) error {
-	// Mutexを使ってバッファをロック
-	bufferMutex.Lock()
-	defer bufferMutex.Unlock()
-
 	// バッファが空の場合は何もしない
 	if len(chairLocationsBuffer) == 0 {
 		return nil
