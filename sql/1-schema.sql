@@ -157,18 +157,21 @@ CREATE INDEX idx_user_id_created_at_desc ON rides (user_id, created_at DESC);
 CREATE INDEX idx_chair_id_updated_at_desc ON rides (chair_id, updated_at DESC);
 CREATE INDEX idx_used_by ON coupons (used_by);
 
-
 DELIMITER $$
 
+-- 既存のトリガーがあれば削除
+DROP TRIGGER IF EXISTS update_total_chair_location_distances $$
+
+-- 新しいトリガーを作成
 CREATE TRIGGER update_total_chair_location_distances
     AFTER INSERT ON chair_locations
     FOR EACH ROW
 BEGIN
-    DECLARE previous_latitude INT;
-    DECLARE previous_longitude INT;
+    DECLARE previous_latitude INT DEFAULT 0;
+    DECLARE previous_longitude INT DEFAULT 0;
     DECLARE distance INT;
 
-    -- 直前の位置情報を取得
+    -- 直前の位置情報を取得（ない場合は0のまま）
     SELECT latitude, longitude
     INTO previous_latitude, previous_longitude
     FROM chair_locations
@@ -188,3 +191,4 @@ BEGIN
 END $$
 
 DELIMITER ;
+
