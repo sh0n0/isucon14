@@ -174,7 +174,7 @@ BEGIN
     FROM chair_locations
     WHERE chair_id = NEW.chair_id
     ORDER BY created_at DESC
-    LIMIT 1 OFFSET 1;
+    LIMIT 1;
 
     -- 最初の位置情報挿入時には距離を0に設定
     IF previous_latitude = 0 AND previous_longitude = 0 THEN
