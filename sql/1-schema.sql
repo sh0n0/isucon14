@@ -156,3 +156,35 @@ CREATE INDEX idx_access_token ON chairs (access_token);
 CREATE INDEX idx_user_id_created_at_desc ON rides (user_id, created_at DESC);
 CREATE INDEX idx_chair_id_updated_at_desc ON rides (chair_id, updated_at DESC);
 CREATE INDEX idx_used_by ON coupons (used_by);
+
+
+DELIMITER $$
+
+CREATE TRIGGER update_total_chair_location_distances
+    AFTER INSERT ON chair_locations
+    FOR EACH ROW
+BEGIN
+    DECLARE previous_latitude INT;
+    DECLARE previous_longitude INT;
+    DECLARE distance INT;
+
+    -- 直前の位置情報を取得
+    SELECT latitude, longitude
+    INTO previous_latitude, previous_longitude
+    FROM chair_locations
+    WHERE chair_id = NEW.chair_id
+    ORDER BY created_at DESC
+    LIMIT 1 OFFSET 1;
+
+    -- 移動距離を計算
+    SET distance = ABS(NEW.latitude - previous_latitude) + ABS(NEW.longitude - previous_longitude);
+
+    -- total_chair_location_distances テーブルを更新
+    INSERT INTO total_chair_location_distances (chair_id, total_distance, total_distance_updated_at)
+    VALUES (NEW.chair_id, distance, NEW.created_at)  -- created_atをtotal_distance_updated_atに設定
+    ON DUPLICATE KEY UPDATE
+                         total_distance = total_distance + VALUES(total_distance),
+                         total_distance_updated_at = VALUES(total_distance_updated_at);  -- created_atを更新
+END $$
+
+DELIMITER ;

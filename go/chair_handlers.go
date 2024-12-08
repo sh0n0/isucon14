@@ -113,17 +113,6 @@ func chairPostCoordinate(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback()
 
-	// chair.IDの最新の位置情報を取得
-	latestLocation := &ChairLocation{}
-	latestLatitude := 0
-	latestLongitude := 0
-	err = tx.GetContext(ctx, latestLocation, `SELECT * FROM chair_locations WHERE chair_id = ? ORDER BY created_at DESC LIMIT 1`, chair.ID)
-	if err == nil {
-		latestLatitude = latestLocation.Latitude
-		latestLongitude = latestLocation.Longitude
-	}
-	distance := calculateDistance(latestLatitude, latestLongitude, req.Latitude, req.Longitude)
-
 	chairLocationID := ulid.Make().String()
 	if _, err := tx.ExecContext(
 		ctx,
@@ -139,16 +128,6 @@ func chairPostCoordinate(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-
-	_, _ = tx.ExecContext(
-		ctx,
-		`INSERT INTO total_chair_location_distances (chair_id, total_distance, total_distance_updated_at)
-     VALUES (?, ?, ?)
-     ON DUPLICATE KEY UPDATE
-         total_distance = total_distance + VALUES(total_distance),
-         total_distance_updated_at = VALUES(total_distance_updated_at)`,
-		chair.ID, distance, location.CreatedAt,
-	)
 
 	ride := &Ride{}
 	if err := tx.GetContext(ctx, ride, `SELECT * FROM rides WHERE chair_id = ? ORDER BY updated_at DESC LIMIT 1`, chair.ID); err != nil {
