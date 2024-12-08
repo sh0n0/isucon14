@@ -159,22 +159,22 @@ DELIMITER $$
 -- 既存のトリガーがあれば削除
 DROP TRIGGER IF EXISTS update_total_chair_location_distances $$
 
--- 新しいトリガーを作成
+-- BEFORE INSERT トリガーを作成
 CREATE TRIGGER update_total_chair_location_distances
-    AFTER INSERT ON chair_locations
+    BEFORE INSERT ON chair_locations
     FOR EACH ROW
 BEGIN
     DECLARE previous_latitude INT DEFAULT 0;
     DECLARE previous_longitude INT DEFAULT 0;
     DECLARE distance INT DEFAULT 0;
 
-    -- 直前の位置情報を取得（ない場合は0のまま）
+    -- 直前の位置情報を取得
     SELECT latitude, longitude
     INTO previous_latitude, previous_longitude
     FROM chair_locations
     WHERE chair_id = NEW.chair_id
     ORDER BY created_at DESC
-    LIMIT 1;
+    LIMIT 1;  -- 直前の位置情報を取得
 
     -- 最初の位置情報挿入時には距離を0に設定
     IF previous_latitude = 0 AND previous_longitude = 0 THEN
@@ -185,6 +185,7 @@ BEGIN
     END IF;
 
     -- total_chair_location_distances テーブルをUPSERT
+    -- ここでは直前の移動距離に新しい移動距離を加算
     INSERT INTO total_chair_location_distances (chair_id, total_distance, total_distance_updated_at)
     VALUES (NEW.chair_id, distance, NEW.created_at)
     ON DUPLICATE KEY UPDATE
@@ -193,4 +194,5 @@ BEGIN
 END $$
 
 DELIMITER ;
+
 
