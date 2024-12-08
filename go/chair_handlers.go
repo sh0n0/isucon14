@@ -198,6 +198,16 @@ func handleInsert(ctx context.Context, tx *sqlx.Tx, chairID string, latitude int
 
 	chairLocationsBuffer = append(chairLocationsBuffer, location)
 
+	// bufferのsizeが10を超えた場合はbulkInsertを実行
+	if len(chairLocationsBuffer) >= 10 {
+		if err := bulkInsert(ctx, tx); err != nil {
+			return err
+		}
+
+		// chairIdSetを初期化
+		chairIdSet = make(map[string]bool)
+	}
+
 	return nil
 }
 
