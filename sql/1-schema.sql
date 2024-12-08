@@ -141,3 +141,6 @@ CREATE INDEX idx_ride_id_created_at ON ride_statuses (ride_id, created_at);
 CREATE INDEX idx_ride_id_app_sent_at_created_at ON ride_statuses (ride_id, app_sent_at, created_at);
 CREATE INDEX idx_owner_id ON chairs (owner_id);
 CREATE INDEX idx_access_token ON chairs (access_token);
+CREATE INDEX idx_user_id_created_at_desc ON rides (user_id, created_at DESC);
+CREATE INDEX idx_chair_id_updated_at_desc ON rides (chair_id, updated_at DESC);
+CREATE INDEX idx_used_by ON coupons (used_by);
