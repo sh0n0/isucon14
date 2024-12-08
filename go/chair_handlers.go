@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/jmoiron/sqlx"
 	"net/http"
 	"sync"
 	"time"
@@ -117,7 +119,7 @@ func chairPostCoordinate(w http.ResponseWriter, r *http.Request) {
 
 	createdAt := time.Now().UTC()
 
-	if err := handleInsert(chair.ID, req.Latitude, req.Longitude, createdAt); err != nil {
+	if err := handleInsert(ctx, tx, chair.ID, req.Latitude, req.Longitude, createdAt); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -163,10 +165,11 @@ func chairPostCoordinate(w http.ResponseWriter, r *http.Request) {
 
 var (
 	chairLocationsBuffer []ChairLocation
+	chairIdSet           = make(map[string]struct{})
 	bufferMutex          sync.Mutex // バッファ用のミューテックス
 )
 
-func handleInsert(chairID string, latitude int, longitude int, createdAt time.Time) error {
+func handleInsert(ctx context.Context, tx *sqlx.Tx, chairID string, latitude int, longitude int, createdAt time.Time) error {
 	// 新しい椅子の位置情報を作成
 	chairLocationID := ulid.Make().String()
 	location := ChairLocation{
@@ -180,6 +183,16 @@ func handleInsert(chairID string, latitude int, longitude int, createdAt time.Ti
 	// バッファに追加
 	bufferMutex.Lock()         // バッファに対するロックを取得
 	defer bufferMutex.Unlock() // 処理後にロックを解放
+
+	// chairIdSetにchairIDを追加
+	chairIdSet[chairID] = struct{}{}
+
+	// すでにchairIdSetに存在する場合はbulkInsertを実行
+	if _, ok := chairIdSet[chairID]; ok {
+		if err := bulkInsert(ctx, tx); err != nil {
+			return err
+		}
+	}
 
 	chairLocationsBuffer = append(chairLocationsBuffer, location)
 

@@ -81,15 +81,20 @@ func setup() http.Handler {
 	mux.HandleFunc("POST /api/initialize", postInitialize)
 
 	// Tickerを使って定期的にバルクインサート
-	ticker := time.NewTicker(time.Millisecond * 50)
+	ticker := time.NewTicker(time.Millisecond * 1000)
 	go func() {
 		for range ticker.C {
 			if chairLocationsBuffer == nil {
 				continue
 			}
-			if err := bulkInsert(context.Background(), db); err != nil {
+			tx, err := db.Beginx()
+			if err != nil {
+				return
+			}
+			if err := bulkInsert(context.Background(), tx); err != nil {
 				slog.Error("failed to bulk insert", err)
 			}
+			tx.Commit()
 		}
 	}()
 
@@ -165,13 +170,13 @@ type Coordinate struct {
 	Longitude int `json:"longitude"`
 }
 
-func bulkInsert(ctx context.Context, db *sqlx.DB) error {
+func bulkInsert(ctx context.Context, tx *sqlx.Tx) error {
 	// NamedExecを使って一括挿入
 	query := `
 		INSERT INTO chair_locations (id, chair_id, latitude, longitude)
 		VALUES (:id, :chair_id, :latitude, :longitude)
 		`
-	_, err := db.NamedExecContext(ctx, query, chairLocationsBuffer)
+	_, err := tx.NamedExecContext(ctx, query, chairLocationsBuffer)
 	if err != nil {
 		return fmt.Errorf("failed to insert chair locations: %w", err)
 	}
