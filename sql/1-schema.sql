@@ -135,6 +135,18 @@ CREATE TABLE coupons
 )
   COMMENT 'クーポンテーブル';
 
+DROP TABLE IF EXISTS total_chair_location_distances;
+CREATE TABLE total_chair_location_distances
+(
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  chair_id   VARCHAR(26) NOT NULL COMMENT '椅子ID',
+  total_distance   INTEGER     NOT NULL COMMENT '移動距離',
+  total_distance_updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6) COMMENT '更新日時',
+  PRIMARY KEY (id)
+)
+  COMMENT = '椅子の合計移動距離情報テーブル';
+
+CREATE INDEX idx_chair_id ON total_chair_location_distances (chair_id);
 
 CREATE INDEX idx_chair_id_created_at ON chair_locations (chair_id, created_at DESC);
 CREATE INDEX idx_ride_id_created_at ON ride_statuses (ride_id, created_at);
