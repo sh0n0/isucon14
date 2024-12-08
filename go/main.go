@@ -182,8 +182,8 @@ func bulkInsert(ctx context.Context, tx *sqlx.Tx) error {
 
 	// NamedExecを使って一括挿入
 	query := `
-		INSERT INTO chair_locations (id, chair_id, latitude, longitude)
-		VALUES (:id, :chair_id, :latitude, :longitude)
+		INSERT INTO chair_locations (id, chair_id, latitude, longitude, created_at)
+		VALUES (:id, :chair_id, :latitude, :longitude, :created_at)
 		`
 	_, err := tx.NamedExecContext(ctx, query, chairLocationsBuffer)
 	if err != nil {
@@ -191,7 +191,8 @@ func bulkInsert(ctx context.Context, tx *sqlx.Tx) error {
 	}
 
 	// バッファをクリア
-	chairLocationsBuffer = nil
+	chairLocationsBuffer = chairLocationsBuffer[:0]
+	chairIdSet = make(map[string]bool)
 
 	return nil
 }
