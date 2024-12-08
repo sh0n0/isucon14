@@ -4,11 +4,11 @@ export GO111MODULE=on
 ####################################################################
 DB_HOST:=127.0.0.1
 DB_PORT:=3306
-DB_USER:=TODO
-DB_PASS:=TODO
-DB_NAME:=TODO
+DB_USER:=isucon
+DB_PASS:=isucon
+DB_NAME:=isuride
 
-SERVICE:=TODO.service
+SERVICE:=isuride-go.service
 ALPM:="/TODO,/TODO"
 ####################################################################
 
