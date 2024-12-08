@@ -140,7 +140,7 @@ CREATE TABLE total_chair_location_distances
 (
   chair_id   VARCHAR(26) NOT NULL COMMENT '椅子ID',
   total_distance   BIGINT     NOT NULL COMMENT '移動距離',
-  total_distance_updated_at DATETIME(6) NOT NULL,
+  total_distance_updated_at DATETIME(6),
   PRIMARY KEY (chair_id)
 )
   COMMENT = '椅子の合計移動距離情報テーブル';
@@ -167,6 +167,7 @@ BEGIN
     DECLARE previous_latitude INT DEFAULT 0;
     DECLARE previous_longitude INT DEFAULT 0;
     DECLARE distance INT DEFAULT 0;
+    DECLARE total_distance_updated_at DATETIME(6) DEFAULT NULL;
 
     -- 直前の位置情報を取得
     SELECT latitude, longitude
@@ -179,20 +180,21 @@ BEGIN
     -- 最初の位置情報挿入時には距離を0に設定
     IF previous_latitude = 0 AND previous_longitude = 0 THEN
         SET distance = 0;
+        SET total_distance_updated_at = NULL;  -- 初回挿入時には更新日時をNULLに設定
     ELSE
         -- 移動距離を計算
         SET distance = ABS(NEW.latitude - previous_latitude) + ABS(NEW.longitude - previous_longitude);
+        SET total_distance_updated_at = NEW.created_at;  -- 更新日時を設定
     END IF;
 
     -- total_chair_location_distances テーブルをUPSERT
     -- ここでは直前の移動距離に新しい移動距離を加算
     INSERT INTO total_chair_location_distances (chair_id, total_distance, total_distance_updated_at)
-    VALUES (NEW.chair_id, distance, NEW.created_at)
+    VALUES (NEW.chair_id, distance, total_distance_updated_at)
     ON DUPLICATE KEY UPDATE
                          total_distance = total_distance + VALUES(total_distance),
                          total_distance_updated_at = VALUES(total_distance_updated_at);  -- created_atを更新
 END $$
 
 DELIMITER ;
-
 
