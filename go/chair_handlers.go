@@ -8,6 +8,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/oklog/ulid/v2"
 )
@@ -116,15 +117,9 @@ func chairPostCoordinate(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback()
 
-	chairLocationID := ulid.Make().String()
+	createdAt := time.Now().UTC()
 
-	if err := handleInsert(ctx, tx, chair.ID, req.Latitude, req.Longitude); err != nil {
-		writeError(w, http.StatusInternalServerError, err)
-		return
-	}
-
-	location := &ChairLocation{}
-	if err := tx.GetContext(ctx, location, `SELECT * FROM chair_locations WHERE id = ?`, chairLocationID); err != nil {
+	if err := handleInsert(ctx, tx, chair.ID, req.Latitude, req.Longitude, createdAt); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -164,7 +159,7 @@ func chairPostCoordinate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, &chairPostCoordinateResponse{
-		RecordedAt: location.CreatedAt.UnixMilli(),
+		RecordedAt: createdAt.UnixMilli(),
 	})
 }
 
@@ -174,7 +169,7 @@ var (
 	batchSize            = 10
 )
 
-func handleInsert(ctx context.Context, tx *sqlx.Tx, chairID string, latitude int, longitude int) error {
+func handleInsert(ctx context.Context, tx *sqlx.Tx, chairID string, latitude int, longitude int, createdAt time.Time) error {
 	// 新しい椅子の位置情報を作成
 	chairLocationID := ulid.Make().String()
 	location := ChairLocation{
@@ -182,6 +177,7 @@ func handleInsert(ctx context.Context, tx *sqlx.Tx, chairID string, latitude int
 		ChairID:   chairID,
 		Latitude:  latitude,
 		Longitude: longitude,
+		CreatedAt: createdAt,
 	}
 
 	// バッファに追加
