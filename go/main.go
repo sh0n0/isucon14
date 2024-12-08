@@ -21,6 +21,8 @@ import (
 
 var db *sqlx.DB
 
+var paymentGatewayURL string
+
 func main() {
 	go func() {
 		log.Fatal(http.ListenAndServe(":6060", nil))
@@ -138,10 +140,7 @@ func postInitialize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := db.ExecContext(ctx, "UPDATE settings SET value = ? WHERE name = 'payment_gateway_url'", req.PaymentServer); err != nil {
-		writeError(w, http.StatusInternalServerError, err)
-		return
-	}
+	paymentGatewayURL = req.PaymentServer
 
 	writeJSON(w, http.StatusOK, postInitializeResponse{Language: "go"})
 }
