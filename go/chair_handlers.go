@@ -184,9 +184,6 @@ func handleInsert(ctx context.Context, tx *sqlx.Tx, chairID string, latitude int
 	bufferMutex.Lock()         // バッファに対するロックを取得
 	defer bufferMutex.Unlock() // 処理後にロックを解放
 
-	// chairIdSetにchairIDを追加
-	chairIdSet[chairID] = true
-
 	// すでにchairIdSetに存在する場合はbulkInsertを実行
 	if _, ok := chairIdSet[chairID]; ok {
 		if err := bulkInsert(ctx, tx); err != nil {
@@ -195,6 +192,9 @@ func handleInsert(ctx context.Context, tx *sqlx.Tx, chairID string, latitude int
 		// chairIdSetを初期化
 		chairIdSet = make(map[string]bool)
 	}
+
+	// chairIdSetにchairIDを追加
+	chairIdSet[chairID] = true
 
 	chairLocationsBuffer = append(chairLocationsBuffer, location)
 
