@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/jmoiron/sqlx"
 	"net/http"
+	"sync"
 
 	"github.com/oklog/ulid/v2"
 )
@@ -114,11 +117,8 @@ func chairPostCoordinate(w http.ResponseWriter, r *http.Request) {
 	defer tx.Rollback()
 
 	chairLocationID := ulid.Make().String()
-	if _, err := tx.ExecContext(
-		ctx,
-		`INSERT INTO chair_locations (id, chair_id, latitude, longitude) VALUES (?, ?, ?, ?)`,
-		chairLocationID, chair.ID, req.Latitude, req.Longitude,
-	); err != nil {
+
+	if err := handleInsert(ctx, tx, chair.ID, req.Latitude, req.Longitude); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -166,6 +166,47 @@ func chairPostCoordinate(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, &chairPostCoordinateResponse{
 		RecordedAt: location.CreatedAt.UnixMilli(),
 	})
+}
+
+var (
+	chairLocationsBuffer []ChairLocationBuffer
+	bufferMutex          sync.Mutex // バッファ用のミューテックス
+	batchSize            = 10
+)
+
+func handleInsert(ctx context.Context, tx *sqlx.Tx, chairID string, latitude int, longitude int) error {
+	// 新しい椅子の位置情報を作成
+	chairLocationID := ulid.Make().String()
+	location := ChairLocation{
+		ID:        chairLocationID,
+		ChairID:   chairID,
+		Latitude:  latitude,
+		Longitude: longitude,
+	}
+
+	// バッファに追加
+	bufferMutex.Lock()         // バッファに対するロックを取得
+	defer bufferMutex.Unlock() // 処理後にロックを解放
+
+	chairLocationsBuffer = append(chairLocationsBuffer, location)
+
+	// バッファが指定されたサイズに達したらBULK INSERTを実行
+	if len(chairLocationsBuffer) >= batchSize {
+		// NamedExecを使って一括挿入
+		query := `
+		INSERT INTO chair_locations (id, chair_id, latitude, longitude)
+		VALUES (:id, :chair_id, :latitude, :longitude)
+		`
+		_, err := tx.NamedExecContext(ctx, query, chairLocationsBuffer)
+		if err != nil {
+			return fmt.Errorf("failed to insert chair locations: %w", err)
+		}
+
+		// バッファをクリア
+		chairLocationsBuffer = nil
+	}
+
+	return nil
 }
 
 type simpleUser struct {
